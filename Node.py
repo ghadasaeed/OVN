@@ -1,3 +1,4 @@
+
 class Node(object):
     def __init__(self, node_dict):
         self._label = node_dict['label']
@@ -25,12 +26,27 @@ class Node(object):
     def successive(self, successive):
         self._successive = successive
 
-    def propagate(self, signal_information):
-        path = signal_information.path
+    def propagate(self, lightpath, occupation=False):
+        path = lightpath.path
         if len(path) > 1:
             line_label = path[:2]
             line = self.successive[line_label]
-            signal_information.next()
-            signal_information = line.propagate(signal_information)
+            lightpath.next()
+            lightpath.signal_power = lightpath.optimized_powers[line_label]
+            lightpath = line.propagate(lightpath, occupation)
+        return lightpath
 
-        return signal_information
+    def optimize(self, lightpath):
+        path = lightpath.path
+
+        if len(path) > 1:
+           line_label = path[:2]
+           line = self.successive[line_label]
+           ase = line.ase_generation()
+           eta = line.nli_generation(1, lightpath.rs, lightpath.df)
+           p_opt = (ase / (2 * eta)) ** (1 / 3)  # calculate optimum signal power
+           lightpath.optimized_powers.update({line_label: p_opt})
+           lightpath.next()
+           node = line.successive[lightpath.path[0]]
+           lightpath = node.optimize(lightpath)
+        return lightpath
